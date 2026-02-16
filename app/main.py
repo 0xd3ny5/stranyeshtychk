@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from sqlalchemy.dialects.postgresql import insert
 from app.core.config import get_settings
 from app.core.limiter import limiter
 from app.core.security import _RedirectException
@@ -16,29 +17,30 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: seed admin user if needed
     from app.core.database import async_session_factory
     from app.core.security import hash_password
     from app.models.user import AdminUser
-    from sqlalchemy import select
 
     async with async_session_factory() as session:
-        stmt = select(AdminUser).where(AdminUser.email == settings.ADMIN_EMAIL)
-        result = await session.execute(stmt)
-        if not result.scalar_one_or_none():
-            admin = AdminUser(
+        stmt = (
+            insert(AdminUser)
+            .values(
                 email=settings.ADMIN_EMAIL,
                 password_hash=hash_password(settings.ADMIN_PASSWORD),
                 is_active=True,
             )
-            session.add(admin)
-            await session.commit()
+            .on_conflict_do_nothing(index_elements=[AdminUser.email])  # или ["email"]
+        )
+
+        res = await session.execute(stmt)
+        await session.commit()
+
+        if res.rowcount == 1:
             print(f"✓ Seeded admin user: {settings.ADMIN_EMAIL}")
         else:
             print(f"✓ Admin user exists: {settings.ADMIN_EMAIL}")
 
     yield
-
 
 app = FastAPI(
     title="Artist Portfolio",
