@@ -1,0 +1,228 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Site Settings — Admin{% endblock %}
+{% block nav_settings %}active{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>Site Settings</h1>
+</div>
+
+<form id="settingsForm" class="work-form">
+
+  <h3 style="margin-bottom:16px; font-size:15px; font-weight:500;">Header</h3>
+  <div class="form-row">
+    <div class="form-group">
+      <label for="artist_name">Artist Name</label>
+      <input type="text" id="artist_name" value="{{ site.artist_name }}" required>
+    </div>
+    <div class="form-group">
+      <label for="artist_subtitle">Subtitle</label>
+      <input type="text" id="artist_subtitle" value="{{ site.artist_subtitle }}">
+    </div>
+    <div class="form-group">
+      <label for="artist_email">Email</label>
+      <input type="email" id="artist_email" value="{{ site.artist_email }}">
+    </div>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e0e0e0; margin:24px 0;">
+
+  <h3 style="margin-bottom:16px; font-size:15px; font-weight:500;">About Page</h3>
+
+  <div class="form-group">
+    <label>About Photo</label>
+    <div class="upload-zone" id="aboutPhotoZone">
+      <div class="upload-preview" id="aboutPhotoPreview">
+        {% if site.about_photo_url %}
+        <img src="{{ site.about_photo_url }}" alt="About photo">
+        <button type="button" class="remove-btn" onclick="removeAboutPhoto()">×</button>
+        {% else %}
+        <p class="upload-hint">Click or drag to upload photo</p>
+        {% endif %}
+      </div>
+      <input type="file" id="aboutPhotoInput" accept="image/*" class="file-input">
+    </div>
+    <input type="hidden" id="about_photo_url" value="{{ site.about_photo_url }}">
+  </div>
+
+  <div class="form-group">
+    <label for="about_text">About Text (one paragraph per line)</label>
+    <textarea id="about_text" rows="6">{{ site.about_text }}</textarea>
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e0e0e0; margin:24px 0;">
+
+  <h3 style="margin-bottom:16px; font-size:15px; font-weight:500;">Contact Page</h3>
+  <div class="form-group">
+    <label for="contact_text">Contact Text</label>
+    <input type="text" id="contact_text" value="{{ site.contact_text }}">
+  </div>
+  <div class="form-group">
+    <label for="contact_email">Contact Email</label>
+    <input type="email" id="contact_email" value="{{ site.contact_email }}">
+  </div>
+
+  <hr style="border:none; border-top:1px solid #e0e0e0; margin:24px 0;">
+
+  <h3 style="margin-bottom:16px; font-size:15px; font-weight:500;">Social Links</h3>
+  <div id="socialLinksContainer">
+    <!-- Filled by JS -->
+  </div>
+  <button type="button" class="btn btn-secondary" onclick="addSocialLink()" style="margin-top:8px">+ Add Link</button>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" id="submitBtn">Save Settings</button>
+    <div id="formStatus" class="form-status"></div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusEl = document.getElementById('formStatus');
+
+// ── Social links dynamic editor ──
+const socialContainer = document.getElementById('socialLinksContainer');
+let socialLinks = {{ site.social_links | tojson }};
+
+function renderSocialLinks() {
+  socialContainer.innerHTML = '';
+  socialLinks.forEach((link, i) => {
+    const row = document.createElement('div');
+    row.className = 'form-row';
+    row.style.marginBottom = '8px';
+    row.innerHTML = `
+      <div class="form-group" style="flex:1">
+        <input type="text" placeholder="Label (e.g. Instagram)" value="${link.label || ''}"
+               onchange="socialLinks[${i}].label = this.value">
+      </div>
+      <div class="form-group" style="flex:2">
+        <input type="url" placeholder="https://..." value="${link.url || ''}"
+               onchange="socialLinks[${i}].url = this.value">
+      </div>
+      <div class="form-group" style="flex:0; padding-top:0">
+        <button type="button" class="btn btn-small btn-danger" onclick="removeSocialLink(${i})">×</button>
+      </div>
+    `;
+    socialContainer.appendChild(row);
+  });
+}
+
+function addSocialLink() {
+  socialLinks.push({ label: '', url: '' });
+  renderSocialLinks();
+}
+
+function removeSocialLink(i) {
+  socialLinks.splice(i, 1);
+  renderSocialLinks();
+}
+
+renderSocialLinks();
+
+// ── About photo upload ──
+const aboutPhotoInput = document.getElementById('aboutPhotoInput');
+const aboutPhotoZone = document.getElementById('aboutPhotoZone');
+const aboutPhotoPreview = document.getElementById('aboutPhotoPreview');
+
+aboutPhotoInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    statusEl.textContent = `Uploading ${file.name}...`;
+    statusEl.className = 'form-status';
+
+    const presignRes = await fetch('/api/admin/uploads/presign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, content_type: file.type, folder: 'site/' }),
+    });
+    if (!presignRes.ok) throw new Error('Presign failed');
+    const { upload_url, public_url } = await presignRes.json();
+
+    const uploadRes = await fetch(upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!uploadRes.ok) throw new Error('Upload failed');
+
+    document.getElementById('about_photo_url').value = public_url;
+    aboutPhotoPreview.innerHTML = `
+      <img src="${URL.createObjectURL(file)}" alt="About photo">
+      <button type="button" class="remove-btn" onclick="removeAboutPhoto()">×</button>
+    `;
+    statusEl.textContent = '';
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.className = 'form-status error';
+  }
+});
+
+aboutPhotoZone.addEventListener('dragover', (e) => { e.preventDefault(); aboutPhotoZone.classList.add('dragover'); });
+aboutPhotoZone.addEventListener('dragleave', () => aboutPhotoZone.classList.remove('dragover'));
+aboutPhotoZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  aboutPhotoZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    aboutPhotoInput.files = dt.files;
+    aboutPhotoInput.dispatchEvent(new Event('change'));
+  }
+});
+
+function removeAboutPhoto() {
+  document.getElementById('about_photo_url').value = '';
+  aboutPhotoPreview.innerHTML = '<p class="upload-hint">Click or drag to upload photo</p>';
+}
+
+// ── Save form ──
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  statusEl.textContent = 'Saving...';
+  statusEl.className = 'form-status';
+
+  // Read fresh values from social link inputs
+  const rows = socialContainer.querySelectorAll('.form-row');
+  const freshLinks = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const label = inputs[0]?.value?.trim();
+    const url = inputs[1]?.value?.trim();
+    if (label && url) freshLinks.push({ label, url });
+  });
+
+  const body = {
+    artist_name: document.getElementById('artist_name').value,
+    artist_subtitle: document.getElementById('artist_subtitle').value,
+    artist_email: document.getElementById('artist_email').value,
+    about_text: document.getElementById('about_text').value,
+    about_photo_url: document.getElementById('about_photo_url').value,
+    contact_text: document.getElementById('contact_text').value,
+    contact_email: document.getElementById('contact_email').value,
+    social_links: freshLinks,
+  };
+
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error('Failed to save');
+    statusEl.textContent = 'Saved!';
+    statusEl.className = 'form-status success';
+  } catch (err) {
+    statusEl.textContent = err.message;
+    statusEl.className = 'form-status error';
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+{% endblock %}
