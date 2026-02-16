@@ -1,0 +1,121 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}{{ 'Edit' if work else 'New' }} Work — Admin{% endblock %}
+{% block nav_new %}{% if not work %}active{% endif %}{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>{{ 'Edit Work' if work else 'New Work' }}</h1>
+</div>
+
+<form id="workForm" class="work-form">
+  <div class="form-row">
+    <div class="form-group">
+      <label for="title">Title *</label>
+      <input type="text" id="title" name="title" value="{{ work.title if work else '' }}" required>
+    </div>
+    <div class="form-group">
+      <label for="slug">Slug *</label>
+      <input type="text" id="slug" name="slug" value="{{ work.slug if work else '' }}"
+             pattern="[a-z0-9][a-z0-9\-]{1,118}[a-z0-9]"
+             required {% if work %}readonly{% endif %}>
+      <small>Lowercase, numbers, hyphens only. Min 3 chars.</small>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="year">Year</label>
+      <input type="number" id="year" name="year" value="{{ work.year if work and work.year else '' }}" min="1900" max="2100">
+    </div>
+    <div class="form-group">
+      <label for="tags">Tags (comma-separated)</label>
+      <input type="text" id="tags" name="tags" value="{{ work.tags | join(', ') if work and work.tags else '' }}">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="span_class">Grid span</label>
+      <select id="span_class" name="span_class">
+        {% set current_span = work.span_class if work else 'span-4' %}
+        <option value="span-2" {% if current_span == 'span-2' %}selected{% endif %}>2 columns</option>
+        <option value="span-3" {% if current_span == 'span-3' %}selected{% endif %}>3 columns</option>
+        <option value="span-4" {% if current_span == 'span-4' %}selected{% endif %}>4 columns</option>
+        <option value="span-5" {% if current_span == 'span-5' %}selected{% endif %}>5 columns</option>
+        <option value="span-6" {% if current_span == 'span-6' %}selected{% endif %}>6 columns</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="sort_order">Sort order</label>
+      <input type="number" id="sort_order" name="sort_order" value="{{ work.sort_order if work else 0 }}">
+    </div>
+    <div class="form-group form-group-check">
+      <label>
+        <input type="checkbox" id="is_tall" name="is_tall" {% if work and work.is_tall %}checked{% endif %}>
+        Tall card
+      </label>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="4">{{ work.description if work and work.description else '' }}</textarea>
+  </div>
+
+  <!-- Cover upload -->
+  <div class="form-group">
+    <label>Cover Image *</label>
+    <div class="upload-zone" id="coverZone">
+      <div class="upload-preview" id="coverPreview">
+        {% if work and work.cover_url %}
+        <img src="{{ work.cover_url }}" alt="Cover">
+        <button type="button" class="remove-btn" onclick="removeCover()">×</button>
+        {% else %}
+        <p class="upload-hint">Click or drag to upload cover image</p>
+        {% endif %}
+      </div>
+      <input type="file" id="coverInput" accept="image/*" class="file-input">
+    </div>
+    <input type="hidden" id="cover_url" name="cover_url" value="{{ work.cover_url if work and work.cover_url else '' }}">
+  </div>
+
+  <!-- Gallery upload -->
+  <div class="form-group">
+    <label>Gallery Images</label>
+    <div class="gallery-upload-wrap">
+      <div class="gallery-previews" id="galleryPreviews">
+        {% if work and work.gallery_urls %}
+        {% for url in work.gallery_urls %}
+        <div class="gallery-thumb" data-url="{{ url }}">
+          <img src="{{ url }}" alt="Gallery image">
+          <button type="button" class="remove-btn" onclick="removeGalleryImage(this)">×</button>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+      <div class="upload-zone upload-zone-small" id="galleryZone">
+        <p class="upload-hint">+ Add images</p>
+        <input type="file" id="galleryInput" accept="image/*" multiple class="file-input">
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" id="submitBtn">
+      {{ 'Save Changes' if work else 'Create Work' }}
+    </button>
+    <a href="/admin/" class="btn btn-secondary">Cancel</a>
+    <div id="formStatus" class="form-status"></div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const IS_EDIT = {{ 'true' if work else 'false' }};
+  const WORK_ID = '{{ work.id if work else '' }}';
+  const WORK_SLUG = '{{ work.slug if work else '' }}';
+</script>
+<script src="/static/js/admin_upload.js"></script>
+{% endblock %}

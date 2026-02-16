@@ -1,0 +1,70 @@
+{% extends "admin/base_admin.html" %}
+
+{% block title %}Dashboard — Admin{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+  <h1>Works</h1>
+  <a href="/admin/works/new" class="btn btn-primary">+ New Work</a>
+</div>
+
+{% if works %}
+<div class="works-table-wrap">
+  <table class="works-table">
+    <thead>
+      <tr>
+        <th>Cover</th>
+        <th>Title</th>
+        <th>Slug</th>
+        <th>Tags</th>
+        <th>Year</th>
+        <th>Order</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for work in works %}
+      <tr>
+        <td class="td-cover">
+          {% if work.cover_url %}
+          <img src="{{ work.cover_url }}" alt="{{ work.title }}" class="table-thumb">
+          {% else %}
+          <span class="no-cover">—</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ work.title }}</strong></td>
+        <td class="td-slug">{{ work.slug }}</td>
+        <td>{{ work.tags | join(', ') if work.tags else '—' }}</td>
+        <td>{{ work.year or '—' }}</td>
+        <td>{{ work.sort_order }}</td>
+        <td class="td-actions">
+          <a href="/admin/works/{{ work.id }}/edit" class="btn btn-small">Edit</a>
+          <button class="btn btn-small btn-danger" onclick="deleteWork('{{ work.id }}', '{{ work.title }}')">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No works yet. <a href="/admin/works/new">Create your first one.</a></p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteWork(id, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+
+  const res = await fetch(`/api/admin/works/${id}`, { method: 'DELETE' });
+  if (res.ok || res.status === 204) {
+    window.location.reload();
+  } else {
+    alert('Failed to delete work');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}{{ work.title }} — {{ site.artist_name }}{% endblock %}
+
+{% block body %}
+<header class="site-header">
+  <div class="header-left">
+    <h1 class="artist-name"><a href="/" style="color:inherit;text-decoration:none">{{ site.artist_name }}</a></h1>
+    <p class="artist-subtitle">{{ site.artist_subtitle }}. <a href="mailto:{{ site.artist_email }}">{{ site.artist_email }}</a></p>
+  </div>
+  <nav id="mainNav">
+    <a href="/">Work</a>
+    <a href="/#about">About</a>
+    <a href="/#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <section class="artwork-detail visible" style="display:block">
+    <a class="back-link" href="/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+      Back to work
+    </a>
+    <div class="detail-image-wrap">
+      {% if work.cover_url %}<img src="{{ work.cover_url }}" alt="{{ work.title }}">{% endif %}
+    </div>
+    <div class="detail-info">
+      <h2 class="detail-title">{{ work.title }}</h2>
+      <p class="detail-meta">
+        {% if work.tags %}{{ work.tags | join(', ') }}{% endif %}
+        {% if work.year %}, {{ work.year }}{% endif %}
+      </p>
+      {% if work.description %}<p class="detail-description">{{ work.description }}</p>{% endif %}
+    </div>
+    {% if work.gallery_urls %}
+    <div class="detail-gallery">
+      {% for url in work.gallery_urls %}
+      <div class="gallery-image-wrap">
+        <img src="{{ url }}" alt="{{ work.title }} — gallery {{ loop.index }}" loading="lazy">
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+
+<footer><p>&copy; 2026 {{ site.artist_name }}</p></footer>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ site.artist_name }} — Portfolio{% endblock %}
+
+{% block body %}
+<header class="site-header">
+  <div class="header-left">
+    <h1 class="artist-name">{{ site.artist_name }}</h1>
+    <p class="artist-subtitle">{{ site.artist_subtitle }}. <a href="mailto:{{ site.artist_email }}">{{ site.artist_email }}</a></p>
+  </div>
+  <nav id="mainNav">
+    <a href="#" class="active" data-section="work">Work</a>
+    <a href="#" data-section="about">About</a>
+    <a href="#" data-section="contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <section id="section-work" class="page-section visible">
+    <div class="portfolio-grid" id="portfolioGrid">
+      {% for work in works %}
+      <div
+        class="grid-item {{ work.span_class }}{% if work.is_tall %} tall{% endif %}"
+        tabindex="0" role="link" aria-label="View {{ work.title }}"
+        data-slug="{{ work.slug }}"
+      >
+        {% if work.cover_url %}
+        <img src="{{ work.cover_url }}"
+             alt="{{ work.title }}{% if work.tags %} — {{ work.tags | join(', ') }}{% endif %}"
+             loading="{{ 'eager' if loop.index0 < 4 else 'lazy' }}">
+        {% else %}
+        <div class="img-placeholder">No image</div>
+        {% endif %}
+        <div class="overlay">
+          <div class="overlay-title">{{ work.title }}</div>
+          {% if work.tags %}<div class="overlay-cat">{{ work.tags | join(', ') }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section id="artwork-detail" class="artwork-detail">
+    <a class="back-link" id="backToGrid" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5m0 0l7 7m-7-7l7-7"/></svg>
+      Back to work
+    </a>
+    <div class="detail-image-wrap"><img id="detailImg" src="" alt=""></div>
+    <div class="detail-info">
+      <h2 class="detail-title" id="detailTitle"></h2>
+      <p class="detail-meta" id="detailMeta"></p>
+      <p class="detail-description" id="detailDesc"></p>
+    </div>
+    <div class="detail-gallery" id="detailGallery"></div>
+  </section>
+
+  <section id="section-about" class="page-section about-section">
+    <h2>About</h2>
+    <div class="about-content">
+      {% if site.about_photo_url %}
+      <img class="about-photo" src="{{ site.about_photo_url }}" alt="{{ site.artist_name }}">
+      {% endif %}
+      <div class="about-text">
+        {% if site.about_text %}
+          {% for paragraph in site.about_text.split('\n') %}
+            {% if paragraph.strip() %}<p>{{ paragraph.strip() }}</p>{% endif %}
+          {% endfor %}
+        {% else %}
+          <p>About text not set yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section id="section-contact" class="page-section contact-section">
+    <h2>Contact</h2>
+    <p class="contact-line">{{ site.contact_text }}</p>
+    <p class="contact-line"><a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a></p>
+    {% if site.social_links %}
+    <div class="contact-socials">
+      {% for link in site.social_links %}
+      <a href="{{ link.url if link.url is string else link['url'] }}" target="_blank" rel="noopener">{{ link.label if link.label is string else link['label'] }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</main>
+
+<footer>
+  <p>&copy; 2026 {{ site.artist_name }}</p>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/portfolio.js"></script>
+{% endblock %}
