@@ -15,8 +15,11 @@ def _get_s3_client():
         endpoint_url=settings.S3_ENDPOINT_URL or None,
         aws_access_key_id=settings.S3_ACCESS_KEY_ID,
         aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
-        region_name=settings.S3_REGION,
-        config=Config(signature_version="s3v4"),
+        region_name=settings.S3_REGION or "auto",
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "virtual"},
+        ),
     )
 
 
