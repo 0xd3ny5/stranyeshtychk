@@ -75,36 +75,3 @@ class WorkDetail(WorkListItem):
 
     model_config = {"from_attributes": True}
 
-
-# === Presign ===
-
-class PresignRequest(BaseModel):
-    filename: str
-    content_type: str
-    folder: str = "works/"
-
-    @field_validator("content_type")
-    @classmethod
-    def validate_content_type(cls, v: str) -> str:
-        allowed = {
-            "image/jpeg", "image/png", "image/webp", "image/gif",
-            "image/heic", "image/heif",
-            "video/mp4", "video/webm", "video/quicktime",
-        }
-        if v not in allowed:
-            raise ValueError(f"Content type {v!r} not allowed")
-        return v
-
-    @field_validator("folder")
-    @classmethod
-    def validate_folder(cls, v: str) -> str:
-        v = v.strip().strip("/") + "/"
-        if ".." in v:
-            raise ValueError("Invalid folder path")
-        return v
-
-
-class PresignResponse(BaseModel):
-    upload_url: str
-    public_url: str
-    key: str

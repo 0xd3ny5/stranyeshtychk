@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,12 +19,12 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/portfolio"
 
-    # S3 / Bucket
+    # S3 / Bucket — reads S3_* first, falls back to AWS_* (Railway auto-injects)
     S3_ENDPOINT_URL: str = ""
     S3_ACCESS_KEY_ID: str = ""
     S3_SECRET_ACCESS_KEY: str = ""
     S3_BUCKET_NAME: str = "portfolio-media"
-    S3_REGION: str = "us-west-002"
+    S3_REGION: str = "auto"
     CDN_BASE_URL: str = ""
 
     # Admin seed
@@ -33,9 +34,22 @@ class Settings(BaseSettings):
     # Session
     SESSION_MAX_AGE: int = 60 * 60 * 24 * 7  # 7 days
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Fallback: if S3_* empty, try AWS_* env vars (Railway bucket auto-injects these)
+        if not self.S3_ENDPOINT_URL:
+            self.S3_ENDPOINT_URL = os.environ.get("AWS_ENDPOINT_URL", "")
+        if not self.S3_ACCESS_KEY_ID:
+            self.S3_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
+        if not self.S3_SECRET_ACCESS_KEY:
+            self.S3_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
+        if not self.S3_BUCKET_NAME or self.S3_BUCKET_NAME == "portfolio-media":
+            self.S3_BUCKET_NAME = os.environ.get("AWS_S3_BUCKET_NAME", self.S3_BUCKET_NAME)
+        if not self.S3_REGION or self.S3_REGION == "auto":
+            self.S3_REGION = os.environ.get("AWS_DEFAULT_REGION", "auto")
+
     @property
     def async_database_url(self) -> str:
-        """Ensure URL uses asyncpg driver. Railway gives postgresql:// which needs converting."""
         url = self.DATABASE_URL
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
