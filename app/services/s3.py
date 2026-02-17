@@ -13,7 +13,6 @@ def _get_s3_client():
         "region_name": settings.S3_REGION or "auto",
         "config": Config(signature_version="s3v4"),
     }
-    # If explicit keys provided, use them; otherwise boto3 reads AWS_* env vars
     if settings.S3_ENDPOINT_URL:
         kwargs["endpoint_url"] = settings.S3_ENDPOINT_URL
     if settings.S3_ACCESS_KEY_ID:
@@ -30,10 +29,7 @@ def upload_file_to_s3(
     content_type: str,
     folder: str = "works/",
 ) -> dict:
-    """
-    Upload file through the server to S3/bucket.
-    Returns: {"public_url": ..., "key": ...}
-    """
+    """Upload file through the server to S3 bucket."""
     ext = ""
     if "." in filename:
         ext = "." + filename.rsplit(".", 1)[-1].lower()
@@ -49,10 +45,20 @@ def upload_file_to_s3(
         ContentType=content_type,
     )
 
-    cdn_base = settings.CDN_BASE_URL.rstrip("/")
-    public_url = f"{cdn_base}/{key}"
+    # Store key as the URL — we'll resolve to presigned GET on render
+    return {"public_url": key, "key": key}
 
-    return {"public_url": public_url, "key": key}
+
+def get_presigned_read_url(key: str, expires: int = 3600) -> str:
+    """Generate a presigned GET URL for reading a private object."""
+    if not key or key.startswith("http"):
+        return key  # already a full URL or empty
+    client = _get_s3_client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},
+        ExpiresIn=expires,
+    )
 
 
 def delete_s3_object(key: str) -> None:

@@ -17,10 +17,14 @@ from app.core.security import (
 from app.models.user import AdminUser
 from app.models.work import Work
 from app.services.settings import get_site_settings
+from app.services.s3 import get_presigned_read_url
 
 settings = get_settings()
 router = APIRouter(prefix="/admin", tags=["admin-pages"])
 templates = Jinja2Templates(directory="app/templates")
+
+# Register s3url filter for admin templates too
+templates.env.filters["s3url"] = get_presigned_read_url
 
 
 # ── Auth pages ──────────────────────────────────────────────
@@ -52,11 +56,9 @@ async def login_submit(
     token = create_session_token(user.id)
     response = RedirectResponse(url="/admin/", status_code=303)
     response.set_cookie(
-        SESSION_COOKIE,
-        token,
+        SESSION_COOKIE, token,
         max_age=settings.SESSION_MAX_AGE,
-        httponly=True,
-        samesite="lax",
+        httponly=True, samesite="lax",
         secure=settings.APP_ENV == "production",
     )
     return response
@@ -89,8 +91,7 @@ async def dashboard(
 
 @router.get("/works/new", response_class=HTMLResponse)
 async def new_work_page(
-    request: Request,
-    admin: AdminUser = Depends(get_current_admin),
+    request: Request, admin: AdminUser = Depends(get_current_admin),
 ):
     return templates.TemplateResponse(
         "admin/work_form.html",
@@ -100,8 +101,7 @@ async def new_work_page(
 
 @router.get("/works/{work_id}/edit", response_class=HTMLResponse)
 async def edit_work_page(
-    request: Request,
-    work_id: str,
+    request: Request, work_id: str,
     admin: AdminUser = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ):
