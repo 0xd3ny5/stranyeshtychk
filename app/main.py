@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from sqlalchemy.dialects.postgresql import insert
 from app.core.config import get_settings
 from app.core.limiter import limiter
 from app.core.security import _RedirectException
+from app.services.s3 import get_presigned_read_url
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -20,27 +20,25 @@ async def lifespan(app: FastAPI):
     from app.core.database import async_session_factory
     from app.core.security import hash_password
     from app.models.user import AdminUser
+    from sqlalchemy import select
 
     async with async_session_factory() as session:
-        stmt = (
-            insert(AdminUser)
-            .values(
+        stmt = select(AdminUser).where(AdminUser.email == settings.ADMIN_EMAIL)
+        result = await session.execute(stmt)
+        if not result.scalar_one_or_none():
+            admin = AdminUser(
                 email=settings.ADMIN_EMAIL,
                 password_hash=hash_password(settings.ADMIN_PASSWORD),
                 is_active=True,
             )
-            .on_conflict_do_nothing(index_elements=[AdminUser.email])  # или ["email"]
-        )
-
-        res = await session.execute(stmt)
-        await session.commit()
-
-        if res.rowcount == 1:
+            session.add(admin)
+            await session.commit()
             print(f"✓ Seeded admin user: {settings.ADMIN_EMAIL}")
         else:
             print(f"✓ Admin user exists: {settings.ADMIN_EMAIL}")
 
     yield
+
 
 app = FastAPI(
     title="Artist Portfolio",
@@ -82,11 +80,11 @@ app.include_router(admin_api_router)
 app.include_router(admin_pages_router)
 app.include_router(pages_router)
 
+
 # ── Custom 404 ──────────────────────────────────────────────
 @app.exception_handler(404)
 async def custom_404(request: Request, exc):
-    from fastapi.templating import Jinja2Templates
-    templates = Jinja2Templates(directory="app/templates")
+    from app.core.templates import templates
     return templates.TemplateResponse(
         "public/404.html", {"request": request}, status_code=404,
     )
